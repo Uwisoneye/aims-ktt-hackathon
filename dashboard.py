@@ -1,109 +1,102 @@
 from __future__ import annotations
 
-import ast
 import json
 from pathlib import Path
 
-import folium
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from streamlit.components.v1 import html
 
-ROOT = Path(__file__).resolve().parent
-ARTIFACT_DIR = ROOT / "artifacts"
-DATA_DIR = ROOT / "data"
+from data_generator import generate_geojson, generate_households
+from risk_scorer import explain_row, score_dataframe, train_logistic_model
 
 st.set_page_config(page_title="Stunting Risk Heatmap Dashboard", layout="wide")
 
+ROOT = Path(__file__).parent
+DATA_DIR = ROOT / "data"
+HOUSEHOLDS = DATA_DIR / "households.csv"
+GEOJSON_FILE = DATA_DIR / "districts.geojson"
+GOLD = DATA_DIR / "gold_stunting_flag.csv"
+
+
 @st.cache_data
-def load_inputs():
-    scored = pd.read_csv(ARTIFACT_DIR / "scored_households.csv")
-    metrics = json.loads((ARTIFACT_DIR / "metrics.json").read_text())
-    geojson = json.loads((DATA_DIR / "districts.geojson").read_text())
-    return scored, metrics, geojson
+ def load_data():
+    if HOUSEHOLDS.exists():
+        df = pd.read_csv(HOUSEHOLDS)
+    else:
+        df = generate_households()
+    if GOLD.exists():
+        gold = pd.read_csv(GOLD)
+        df = df.merge(gold, on="household_id", how="left", suffixes=("", "_gold"))
+        if "gold_stunting_flag" in df.columns:
+            df["stunting_flag"] = df["gold_stunting_flag"].fillna(df.get("stunting_flag", 0)).astype(int)
+    if GEOJSON_FILE.exists():
+        geo = json.loads(GEOJSON_FILE.read_text())
+    else:
+        geo = generate_geojson()
+    scored = score_dataframe(df)
+    return scored, geo
 
 
-def parse_drivers(value):
-    try:
-        parsed = ast.literal_eval(value) if isinstance(value, str) else value
-        return ", ".join(parsed)
-    except Exception:
-        return str(value)
+def main():
+    st.title("Stunting Risk Heatmap Dashboard")
+    st.caption("Tier 1 AIMS KTT challenge: household risk scoring, district choropleth, and printable A4 brief.")
 
+    df, geo = load_data()
+    if "stunting_flag" in df.columns:
+        _, metrics = train_logistic_model(df.dropna(subset=["stunting_flag"]))
+    else:
+        metrics = {}
 
-scored, metrics, district_geojson = load_inputs()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        districts = ["All"] + sorted(df["district"].dropna().unique().tolist())
+        district = st.selectbox("District", districts)
+    with col2:
+        threshold = st.slider("Risk threshold", 0.1, 0.9, 0.5, 0.05)
+    with col3:
+        st.metric("Households", f"{len(df):,}")
 
-st.title("Stunting Risk Heatmap Dashboard")
-st.caption("Tier 1 baseline: household scoring, district map, sector tables, printable A4 pages")
+    filtered = df.copy()
+    if district != "All":
+        filtered = filtered[filtered["district"] == district]
 
-left, right = st.columns([1, 1])
-with left:
-    district_choice = st.selectbox("District", ["All"] + sorted(scored["district"].unique().tolist()))
-with right:
-    threshold = st.slider("Risk threshold", 0.0, 1.0, float(metrics["threshold"]), 0.01)
+    filtered = filtered.copy()
+    filtered["high_risk"] = (filtered["risk_score"] >= threshold).astype(int)
 
-filtered = scored.copy()
-if district_choice != "All":
-    filtered = filtered[filtered["district"] == district_choice]
-filtered = filtered[filtered["risk_score"] >= threshold]
-
-summary = (
-    filtered.groupby(["district", "sector"], as_index=False)
-    .agg(high_risk_households=("household_id", "count"), mean_risk=("risk_score", "mean"))
-    .sort_values(["district", "mean_risk"], ascending=[True, False])
-)
-
-district_summary = (
-    filtered.groupby("district", as_index=False)
-    .agg(high_risk_households=("household_id", "count"), mean_risk=("risk_score", "mean"))
-)
-if district_summary.empty:
-    district_summary = (
-        scored.groupby("district", as_index=False)
-        .agg(high_risk_households=("household_id", "count"), mean_risk=("risk_score", "mean"))
+    st.subheader("Sector-level heatmap")
+    agg = filtered.groupby(["district", "sector"], as_index=False).agg(
+        risk_score=("risk_score", "mean"),
+        households=("household_id", "count"),
+        high_risk=("high_risk", "sum"),
     )
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Threshold", f"{threshold:.2f}")
-c2.metric("CV ROC AUC", f"{metrics['cv_roc_auc']:.3f}")
-c3.metric("CV F1", f"{metrics['cv_f1']:.3f}")
-
-fig = px.choropleth_mapbox(
-    district_summary,
-    geojson=district_geojson,
-    featureidkey="properties.district",
-    locations="district",
-    color="mean_risk",
-    hover_name="district",
-    hover_data={"high_risk_households": True, "mean_risk": ':.3f'},
-    mapbox_style="carto-positron",
-    center={"lat": -1.94, "lon": 30.06},
-    zoom=9,
-    opacity=0.65,
-)
-fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-st.subheader("District choropleth")
-st.plotly_chart(fig, use_container_width=True)
-
-st.subheader("Sector summary")
-st.dataframe(summary, use_container_width=True, hide_index=True)
-
-st.subheader("Top high-risk households")
-detail = filtered.sort_values("risk_score", ascending=False).head(20).copy()
-if not detail.empty:
-    detail["top_drivers"] = detail["top_drivers"].map(parse_drivers)
-    st.dataframe(
-        detail[["anon_household_id", "district", "sector", "risk_score", "top_drivers"]],
-        use_container_width=True,
-        hide_index=True,
+    fig = px.choropleth(
+        agg,
+        geojson=geo,
+        locations="district",
+        featureidkey="properties.district",
+        color="risk_score",
+        color_continuous_scale="Reds",
+        scope="africa",
+        hover_data={"sector": True, "households": True, "high_risk": True, "risk_score": ":.2f"},
     )
-else:
-    st.info("No households match the selected threshold.")
+    fig.update_geos(fitbounds="locations", visible=False)
+    st.plotly_chart(fig, use_container_width=True)
 
-st.subheader("Printable pages")
-pdf_files = sorted((ROOT / "printable").glob("*.pdf"))
-if pdf_files:
-    st.write("Generated sector PDFs:")
-    for pdf in pdf_files[:10]:
-        st.write(f"- {pdf.name}")
+    st.subheader("Top high-risk households")
+    display_cols = ["household_id", "district", "sector", "risk_score", "avg_meal_count", "water_source", "sanitation_tier", "income_band", "children_under5"]
+    st.dataframe(filtered.sort_values("risk_score", ascending=False)[display_cols].head(20), use_container_width=True)
+
+    st.subheader("One household explanation")
+    chosen = st.selectbox("Choose household", filtered.sort_values("risk_score", ascending=False).head(50)["household_id"].tolist())
+    row = filtered[filtered["household_id"] == chosen].iloc[0]
+    st.write({"household_id": chosen, "risk_score": round(float(row["risk_score"]), 3), "top_drivers": explain_row(row)})
+
+    if metrics:
+        st.subheader("Model metrics on labelled rows")
+        st.write(metrics)
+
+
+if __name__ == "__main__":
+    main()
