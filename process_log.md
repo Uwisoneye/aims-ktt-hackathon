@@ -1,22 +1,22 @@
-# process_log
+# process_log.md
 
-## Hour-by-hour timeline
-- 00:00–00:20 — Read the challenge brief and identified the required deliverables.
-- 00:20–00:50 — Chose a simple rule-based scorer plus optional logistic regression for labelled data.
-- 00:50–01:30 — Built `risk_scorer.py`, `dashboard.py`, and the printable PDF generator.
-- 01:30–01:50 — Wrote README, generated PDFs, and checked that the solution stays explainable.
-- 01:50–02:00 — Final review: verified repo structure, artifact names, and video outline.
+## Timeline
+- Hour 1: Read the challenge brief, mapped required deliverables, and chose a Tier 1 baseline approach.
+- Hour 2: Recreated the missing synthetic input files from the generator specification in the brief.
+- Hour 3: Built the logistic regression scorer, threshold calibration, and explanation logic.
+- Hour 4: Built dashboard scaffolding, generated printable PDFs, and documented product workflow trade-offs.
 
-## LLM / assistant tools used
-- ChatGPT — used for structuring the solution, drafting code, and preparing submission text.
+## Tools used
+- ChatGPT (GPT-5.4 Thinking): planning, code drafting, debugging, README drafting.
 
-## Sample prompts actually used
-1. "Make it clear real project proposal: (Including project title and problem statement, tech stack, and profile within the technical skill matrix)"
-2. "3mins Pitch for video"
-3. "help me apply on this: do what they requested, whre you do nt have idea ask"
+## Three sample prompts used
+1. "Help me convert this challenge brief into a minimal Tier 1 submission plan with the fastest possible path to working deliverables."
+2. "Generate a synthetic households dataset with the exact columns from the brief and a stunting label driven by meals, water, sanitation, income, and number of under-5 children."
+3. "Write a logistic regression baseline with explainable household-level drivers and printable PDF export."
 
-## Discarded prompt
-- A more complex deep-learning approach was considered, but discarded because the challenge rewards clarity, reproducibility, and live defense readiness more than over-scoped ML.
+## One discarded prompt
+- "Build a fully polished production dashboard with sector polygons, multi-page PDF templates, and multilingual deployment."  
+Discarded because it was too broad for the time budget and risked over-scoping.
 
 ## Hardest decision
-The hardest decision was choosing between a more sophisticated model and a simple, explainable scoring system. I chose the explainable baseline because the brief explicitly values a working end-to-end pipeline, low-tech usability, and the ability to defend the code live. That trade-off reduces technical risk and makes the product artifact easier for local leaders to understand.
+The hardest decision was choosing a simple end-to-end baseline instead of chasing a more sophisticated geospatial model. The brief heavily rewards completeness, clarity, and local usability, so I prioritized a logistic regression scorer with printable district workflow support over deeper modeling. That kept the solution explainable in live defense and allowed me to ship all mandatory artifacts.
