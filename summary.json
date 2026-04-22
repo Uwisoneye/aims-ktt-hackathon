@@ -1,0 +1,25 @@
+{
+  "rows": 2500,
+  "overall_true_prevalence": 0.2196,
+  "district_prevalence": {
+    "Gasabo": 0.165,
+    "Kicukiro": 0.194,
+    "Musanze": 0.3225,
+    "Nyagatare": 0.3111,
+    "Nyarugenge": 0.1527
+  },
+  "sample_sectors": {
+    "Nyarugenge": [
+      "Kimisagara",
+      "Nyamirambo",
+      "Mageragere",
+      "Muhima"
+    ],
+    "Gasabo": [
+      "Kacyiru",
+      "Remera",
+      "Kimironko",
+      "Bumbogo"
+    ]
+  }
+}
