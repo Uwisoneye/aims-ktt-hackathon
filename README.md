@@ -43,13 +43,8 @@ The printable A4 pages are designed for low-connectivity local workflows:
 - Bilingual headers (Kinyarwanda / English) and symbols can support mixed literacy settings.
 
 ## Video URL
-Add your 4-minute video link here before submitting.
+https://youtu.be/isJoP1kusDo
 
-## Suggested demo flow
-1. Open `risk_scorer.py` and explain `score(household)`.
-2. Run `streamlit run dashboard.py`.
-3. Move the threshold slider.
-4. Open one PDF in `printable/` and explain each element as if briefing a village chief.
 
 ## Known limitations
 - The district polygons are simplified synthetic geometry.
