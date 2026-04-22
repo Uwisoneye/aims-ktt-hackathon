@@ -1,32 +1,57 @@
-# aims-ktt-hackathon
+# S2.T1.2 - Stunting Risk Heatmap Dashboard
 
-## Stunting Risk Heatmap Dashboard for Community Health Decision-Making
+Tier 1 baseline submission for the AIMS KTT Fellowship hackathon.
 
-### Overview
-This project builds a simple data-driven tool to identify households at high risk of childhood stunting in Rwanda. It supports local leaders (Umudugudu chiefs, Abunzi) by providing both an interactive dashboard and printable reports for low-tech environments.
+## What this does
+- Computes a per-household stunting risk score from synthetic NISR-style household data.
+- Aggregates risk by district and sector.
+- Ships a Streamlit dashboard with a district filter and risk-threshold slider.
+- Exports printable A4 sector pages with top-10 anonymised high-risk households and their top drivers.
 
-The system computes a household-level risk score using key indicators such as nutrition, sanitation, water access, income, and number of children under five. These scores are then aggregated to produce a sector-level heatmap for decision-making.
-
----
-
-### Features
-- Household-level **stunting risk scoring**
-- Sector-level **choropleth heatmap**
-- Interactive dashboard with **filters (district, risk threshold)**
-- Printable **A4 reports** for community leaders
-- Designed for **low-bandwidth and offline use**
-
----
-
-### Data
-
+## Important note on the data
 The challenge brief listed synthetic input files as provided materials, but they were not available in my packet at build time, so I recreated them from the published generator specification in the brief.
 
-The dataset includes:
-- `households.csv`: 2,500 households with socio-economic and geographic data
-- `gold_stunting_flag.csv`: 300 labeled households
-- `districts.geojson`: simplified district boundaries
+## Repo structure
+- `risk_scorer.py` - model training, scoring, calibration, top-driver explanations.
+- `dashboard.py` - Streamlit dashboard.
+- `prepare_submission.py` - generates scored outputs and printable PDFs.
+- `generate_synthetic_data.py` - regenerates the synthetic source data.
+- `data/` - households CSV, gold labels CSV, district GeoJSON.
+- `printable/` - generated PDF pages.
+- `artifacts/` - scored household file, metrics, manifest.
 
----
+## Run in 2 commands
+```bash
+pip install -r requirements.txt
+python prepare_submission.py && streamlit run dashboard.py
+```
 
-## Project Structure
+## Expected outputs
+- `artifacts/scored_households.csv`
+- `artifacts/metrics.json`
+- `printable/*.pdf`
+
+## Model choice
+I used a logistic regression baseline because the challenge is Tier 1, CPU-only, and the labelled set is small (300 households). The score is explainable enough for a live defense and easy to calibrate with a threshold.
+
+## Product adaptation
+The printable A4 pages are designed for low-connectivity local workflows:
+- The district data officer prints one page per sector every month.
+- The village chief receives only anonymised IDs and top drivers, not names.
+- The chief annotates home visits, nutrition kit needs, WASH gaps, and referrals by pen.
+- Annotated sheets return to the district review meeting, where severe cases are escalated through the health system.
+- Bilingual headers (Kinyarwanda / English) and symbols can support mixed literacy settings.
+
+## Video URL
+Add your 4-minute video link here before submitting.
+
+## Suggested demo flow
+1. Open `risk_scorer.py` and explain `score(household)`.
+2. Run `streamlit run dashboard.py`.
+3. Move the threshold slider.
+4. Open one PDF in `printable/` and explain each element as if briefing a village chief.
+
+## Known limitations
+- The district polygons are simplified synthetic geometry.
+- The labelled set is small and synthetic, so the model is intended as a triage baseline rather than a clinical decision tool.
+- A production deployment would require validated local baselines and field-tested escalation rules.
